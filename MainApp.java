@@ -74,7 +74,7 @@ public class MainApp {
         // --- Setup Frame ---
         frame = new JFrame("Accounting System");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(900, 600); // Slightly wider to fit columns
+        frame.setSize(900, 600); 
         frame.setLocationRelativeTo(null); // Center screen
 
         // --- Setup Tabbed Pane ---
@@ -179,8 +179,11 @@ public class MainApp {
         gbc.gridy = 4;
         gbc.anchor = GridBagConstraints.LINE_START;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        // Use JSpinner for currency
-        amountSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000000.0, 0.01));
+        
+        // FIX: Configure JSpinner to handle commas (e.g., 1,000.00)
+        amountSpinner = new JSpinner(new SpinnerNumberModel(0.0, 0.0, 1000000000.0, 0.01)); // Increased max value
+        JSpinner.NumberEditor amountEditor = new JSpinner.NumberEditor(amountSpinner, "#,##0.00");
+        amountSpinner.setEditor(amountEditor);
         panel.add(amountSpinner, gbc);
 
         // --- Row 5: Add Button ---
@@ -200,22 +203,22 @@ public class MainApp {
     private JScrollPane createTransactionsTab() {
         transactionTableModel = new TransactionTableModel(engine.getTransactions());
         tblTransactions = new JTable(transactionTableModel);
-        setupCurrencyRenderer(tblTransactions, 4); // Column 4 is Amount
+        setupCurrencyRenderer(tblTransactions, 4); 
         return new JScrollPane(tblTransactions);
     }
 
     private JScrollPane createAccountsTab() {
         accountTableModel = new AccountTableModel(engine.getChartOfAccounts());
         tblAccounts = new JTable(accountTableModel);
-        setupCurrencyRenderer(tblAccounts, 2); // Column 2 is Balance
+        setupCurrencyRenderer(tblAccounts, 2); 
         return new JScrollPane(tblAccounts);
     }
 
     private JScrollPane createGeneralJournalTab() {
         generalJournalTableModel = new GeneralJournalTableModel(engine.getGeneralJournal());
         tblGeneralJournal = new JTable(generalJournalTableModel);
-        setupCurrencyRenderer(tblGeneralJournal, 3); // Column 3 is Debit
-        setupCurrencyRenderer(tblGeneralJournal, 4); // Column 4 is Credit
+        setupCurrencyRenderer(tblGeneralJournal, 3); 
+        setupCurrencyRenderer(tblGeneralJournal, 4); 
         return new JScrollPane(tblGeneralJournal);
     }
 
@@ -243,7 +246,7 @@ public class MainApp {
     }
 
     private JPanel createBalanceSheetTab() {
-        JPanel panel = new JPanel(new GridLayout(1, 2, 10, 10)); // 1 row, 2 cols
+        JPanel panel = new JPanel(new GridLayout(1, 2, 10, 10)); 
         panel.setBorder(new EmptyBorder(10, 10, 10, 10));
 
         // --- Left Panel: Assets ---
@@ -358,7 +361,7 @@ public class MainApp {
         GeneralLedgerTableModel ledgerModel = new GeneralLedgerTableModel(selectedAccount, accountTransactions);
         tblGeneralLedger.setModel(ledgerModel);
 
-        // Apply formatting to debit, credit, and balance columns
+        // Apply formatting
         setupCurrencyRenderer(tblGeneralLedger, 2); 
         setupCurrencyRenderer(tblGeneralLedger, 3);
         setupCurrencyRenderer(tblGeneralLedger, 4);
