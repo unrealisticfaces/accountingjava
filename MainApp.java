@@ -2,16 +2,16 @@ package accounting;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.AbstractTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.Date;
-import java.util.Locale; // Import Locale
+import java.util.Locale;
 
 /**
  * Main application class.
@@ -74,7 +74,7 @@ public class MainApp {
         // --- Setup Frame ---
         frame = new JFrame("Accounting System");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(800, 600);
+        frame.setSize(900, 600); // Slightly wider to fit columns
         frame.setLocationRelativeTo(null); // Center screen
 
         // --- Setup Tabbed Pane ---
@@ -231,7 +231,6 @@ public class MainApp {
         panel.add(topPanel, BorderLayout.NORTH);
 
         // --- Center: Table ---
-        // We initialize with an empty table model
         tblGeneralLedger = new JTable();
         pnlGeneralLedger = new JPanel(new BorderLayout());
         pnlGeneralLedger.add(new JScrollPane(tblGeneralLedger), BorderLayout.CENTER);
@@ -254,7 +253,7 @@ public class MainApp {
         txtAssets.setEditable(false);
         txtAssets.setFont(new Font("Monospaced", Font.PLAIN, 12));
         pnlAssets.add(new JScrollPane(txtAssets), BorderLayout.CENTER);
-        lblTotalAssets = new JLabel("Total Assets: ₱0.00"); // Changed $ to ₱
+        lblTotalAssets = new JLabel("Total Assets: ₱0.00");
         pnlAssets.add(lblTotalAssets, BorderLayout.SOUTH);
         panel.add(pnlAssets);
 
@@ -265,7 +264,7 @@ public class MainApp {
         txtLiabilitiesEquity.setEditable(false);
         txtLiabilitiesEquity.setFont(new Font("Monospaced", Font.PLAIN, 12));
         pnlLiabilities.add(new JScrollPane(txtLiabilitiesEquity), BorderLayout.CENTER);
-        lblTotalLiabilitiesEquity = new JLabel("Total L & E: ₱0.00"); // Changed $ to ₱
+        lblTotalLiabilitiesEquity = new JLabel("Total L & E: ₱0.00");
         pnlLiabilities.add(lblTotalLiabilitiesEquity, BorderLayout.SOUTH);
         panel.add(pnlLiabilities);
 
@@ -276,21 +275,15 @@ public class MainApp {
     // UI LOGIC METHODS
     // =========================================================================
 
-    /**
-     * Action for the "Add Transaction" button.
-     */
     private void addTransaction() {
         try {
-            // 1. Get data from controls
             Date date = (Date) dateSpinner.getValue();
             LocalDate localDate = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
             String description = txtDescription.getText();
             Account debitAccount = (Account) cmbDebitAccount.getSelectedItem();
             Account creditAccount = (Account) cmbCreditAccount.getSelectedItem();
-            // Get value from JSpinner
             BigDecimal amount = new BigDecimal(amountSpinner.getValue().toString());
 
-            // 2. Simple Validation
             if (description.trim().isEmpty() || debitAccount == null || creditAccount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
                 JOptionPane.showMessageDialog(frame, "Please fill in all fields correctly.", "Error", JOptionPane.ERROR_MESSAGE);
                 return;
@@ -301,14 +294,10 @@ public class MainApp {
                 return;
             }
 
-            // 3. Add to engine
             engine.addTransaction(localDate, description, debitAccount, creditAccount, amount);
-
-            // 4. Refresh UI
             refreshAllTables();
             refreshBalanceSheet();
             clearInputFields();
-
             JOptionPane.showMessageDialog(frame, "Transaction added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
 
         } catch (Exception ex) {
@@ -316,14 +305,8 @@ public class MainApp {
         }
     }
 
-    /**
-     * Fills the JComboBoxes with data from the engine.
-     */
     private void loadComboBoxes() {
-        // Get all accounts
         java.util.List<Account> accounts = engine.getChartOfAccounts();
-
-        // Clear and load all dropdowns
         cmbDebitAccount.removeAllItems();
         cmbCreditAccount.removeAllItems();
         cmbLedgerAccount.removeAllItems();
@@ -335,9 +318,6 @@ public class MainApp {
         }
     }
 
-    /**
-     * Resets the input form.
-     */
     private void clearInputFields() {
         txtDescription.setText("");
         amountSpinner.setValue(0.0);
@@ -346,9 +326,6 @@ public class MainApp {
         dateSpinner.setValue(new Date());
     }
 
-    /**
-     * Refreshes all tables that show data.
-     */
     private void refreshAllTables() {
         // --- Tab 2: Transactions ---
         transactionTableModel = new TransactionTableModel(engine.getTransactions());
@@ -370,36 +347,33 @@ public class MainApp {
         refreshGeneralLedgerTable();
     }
 
-    /**
-     * Refreshes the General Ledger table based on the JComboBox selection.
-     */
     private void refreshGeneralLedgerTable() {
         Account selectedAccount = (Account) cmbLedgerAccount.getSelectedItem();
         if (selectedAccount == null) {
-            // No account selected, show empty table
             tblGeneralLedger.setModel(new GeneralLedgerTableModel(null, Collections.emptyList()));
             return;
         }
 
-        // Get filtered data
         java.util.List<Transaction> accountTransactions = engine.getTransactionsForAccount(selectedAccount);
-        
-        // Create new model and set it
         GeneralLedgerTableModel ledgerModel = new GeneralLedgerTableModel(selectedAccount, accountTransactions);
         tblGeneralLedger.setModel(ledgerModel);
 
-        // Re-apply cell renderers
-        setupCurrencyRenderer(tblGeneralLedger, 2); // Debit
-        setupCurrencyRenderer(tblGeneralLedger, 3); // Credit
-        setupCurrencyRenderer(tblGeneralLedger, 4); // Balance
+        // Apply formatting to debit, credit, and balance columns
+        setupCurrencyRenderer(tblGeneralLedger, 2); 
+        setupCurrencyRenderer(tblGeneralLedger, 3);
+        setupCurrencyRenderer(tblGeneralLedger, 4);
     }
 
-    /**
-     * Refreshes the text areas and labels on the Balance Sheet tab.
-     */
     private void refreshBalanceSheet() {
-        // Use Philippine locale for currency formatting
         NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(phLocale);
+
+        // FIX: Force Parentheses for negative numbers in the text area
+        if (currencyFormat instanceof DecimalFormat) {
+            DecimalFormat df = (DecimalFormat) currencyFormat;
+            df.setNegativePrefix("(");
+            df.setNegativeSuffix(")");
+        }
+
         StringBuilder sbAssets = new StringBuilder();
         StringBuilder sbLiabilities = new StringBuilder();
 
@@ -412,29 +386,31 @@ public class MainApp {
             }
         }
         
-        // Add Equity (which includes Income - Expenses)
         BigDecimal totalEquity = engine.getTotalEquity();
         sbLiabilities.append("\n--- Equity ---\n");
-        // Add Owner's Capital
         for (Account acc : engine.getChartOfAccounts()) {
              if (acc.getType() == AccountType.EQUITY) {
                 sbLiabilities.append(String.format("%-25s %15s\n", acc.getName(), currencyFormat.format(acc.getBalance())));
             }
         }
-        // Add Net Income/Loss (Income - Expense)
+        
         BigDecimal netIncome = engine.getTotalEquity().subtract(
              engine.getChartOfAccounts().stream()
                 .filter(a -> a.getType() == AccountType.EQUITY)
                 .map(Account::getBalance)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
         );
-        sbLiabilities.append(String.format("%-25s %15s\n", "Net Income", currencyFormat.format(netIncome)));
-        
 
+        // FIX: Change label to "Net Loss" if negative
+        if (netIncome.compareTo(BigDecimal.ZERO) < 0) {
+             sbLiabilities.append(String.format("%-25s %15s\n", "Net Loss", currencyFormat.format(netIncome)));
+        } else {
+             sbLiabilities.append(String.format("%-25s %15s\n", "Net Income", currencyFormat.format(netIncome)));
+        }
+        
         txtAssets.setText(sbAssets.toString());
         txtLiabilitiesEquity.setText(sbLiabilities.toString());
 
-        // --- Totals ---
         BigDecimal totalAssets = engine.getTotalAssets();
         BigDecimal totalLiabilities = engine.getTotalLiabilities();
         BigDecimal totalLiabilitiesAndEquity = totalLiabilities.add(totalEquity);
@@ -443,24 +419,28 @@ public class MainApp {
         lblTotalLiabilitiesEquity.setText("Total L & E: " + currencyFormat.format(totalLiabilitiesAndEquity));
     }
 
-
-    /**
-     * Helper utility to make currency columns look nice (e.g., ₱1,234.56).
-     */
     private void setupCurrencyRenderer(JTable table, int columnIndex) {
         table.getColumnModel().getColumn(columnIndex).setCellRenderer(new CurrencyRenderer());
     }
 
     // =========================================================================
-    // HELPER CLASS FOR CURRENCY FORMATTING
+    // INTERNAL CLASS: CurrencyRenderer
     // =========================================================================
     static class CurrencyRenderer extends DefaultTableCellRenderer {
-        // Use Philippine locale for currency formatting
         private static final NumberFormat FORMAT = NumberFormat.getCurrencyInstance(phLocale);
+
+        // FIX: Static initialization to ensure parentheses formatting on the JTables
+        static {
+            if (FORMAT instanceof DecimalFormat) {
+                DecimalFormat df = (DecimalFormat) FORMAT;
+                df.setNegativePrefix("(");
+                df.setNegativeSuffix(")");
+            }
+        }
 
         public CurrencyRenderer() {
             super();
-            setHorizontalAlignment(JLabel.RIGHT); // Align currency to the right
+            setHorizontalAlignment(JLabel.RIGHT); 
         }
 
         @Override
@@ -468,21 +448,16 @@ public class MainApp {
             if (value instanceof BigDecimal) {
                 value = FORMAT.format(value);
             } else if (value == null) {
-                value = ""; // Show empty string instead of "null"
+                value = ""; 
             }
             super.setValue(value);
         }
     }
 
-    // =========================================================================
-    // MAIN METHOD - Entry Point
-    // =========================================================================
     public static void main(String[] args) {
-        // All Swing applications must run on the Event Dispatch Thread (EDT)
         SwingUtilities.invokeLater(() -> {
             MainApp app = new MainApp();
             app.createAndShowGUI();
         });
     }
 }
-
